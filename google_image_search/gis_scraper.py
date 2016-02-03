@@ -1,36 +1,44 @@
-import urllib2
-import simplejson
-import StringIO
-import random
+
+from os import mkdir
 from time import sleep
 
+from bs4 import BeautifulSoup
+import requests
+import re
+import urllib2
+import os
+
+def get_soup(url,header):
+  return BeautifulSoup(urllib2.urlopen(urllib2.Request(url,headers=header)))
+
+def scrape(query, dest_dir='images/'):
+    image_type = "image"
+    query= query.split()
+    query='+'.join(query)
+    url="https://www.google.com/search?q=%s&source=lnms&tbm=isch"%query
+    header = {'User-Agent': 'Mozilla/5.0'}
+    soup = get_soup(url,header)
+
+    images = [a['src'] for a in soup.find_all("img", {"src": re.compile("gstatic.com")})]
+    for img in images:
+      raw_img = urllib2.urlopen(img).read()
+      cntr = len([i for i in os.listdir(dest_dir) if image_type in i]) + 1
+      f = open(dest_dir + image_type + "_"+ str(cntr)+".jpg", 'wb')
+      f.write(raw_img)
+      f.close()
+    
+
 if __name__ == '__main__':
-    fetcher = urllib2.build_opener()
-    searchTerm = 'skin+lesion'
-    dest_dir = 'images/'
-    startIndex = 0
 
-    user_agent = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
-
-    headers={'User-Agent':user_agent,} 
-
-    for i in range(100):
-        searchUrl = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + searchTerm + "&start=" + str(i)
-        f = fetcher.open(searchUrl)
-        deserialized_output = simplejson.load(f)
-
-        if( deserialized_output and deserialized_output['responseData']):
-
-            for j in range(0,len(deserialized_output['responseData']['results'])):
-                imageUrl = deserialized_output['responseData']['results'][j]['unescapedUrl']
-                request = urllib2.Request(imageUrl, None, headers)
-                fle = StringIO.StringIO(urllib2.urlopen(request).read())
-                content_string = fle.read()
-                print imageUrl
-                output = open(dest_dir+'%d%d.jpg'%(i, j) , 'w')
-                output.write(content_string)
-                fle.close()
-                output.close()
-
-        sleep( 3 )
-
+    terms = ['acitinic+keratosis', 'acitinic+keratosis+lesion', 'squamous+cell+carcinoma',
+            'squamous+cell+carcinoma+lesion', 'basal+cell+carcinoma', 'basal+cell+carcinoma+lesion',
+            'melanoma', 'melanoma+lesion', '"non-cancerous"+lesion']
+    
+    for term in terms:
+        print term
+        try:
+            mkdir(term)
+        except:
+            pass
+        scrape(term, dest_dir=term+'/')
+        sleep(2)
